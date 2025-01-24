@@ -2,6 +2,8 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "baseUrl": "./src",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "types": ["node", "react", "react-dom"],
     "paths": {
       "@/*": ["*"]
     },

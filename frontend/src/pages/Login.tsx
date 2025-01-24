@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Brain, ChevronRight, Lock, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Brain, ChevronRight, Lock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
 const Login: React.FC = () => {
     // Form state
@@ -14,6 +14,24 @@ const Login: React.FC = () => {
         email: '',
         password: ''
     });
+
+    // Password visibility state
+    const [showPassword, setShowPassword] = useState(false);
+
+    // User login state (mocking with token check)
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    // Load remembered email on mount
+    useEffect(() => {
+        const rememberedEmail = localStorage.getItem('rememberedEmail');
+        if (rememberedEmail) {
+            setFormData(prev => ({ ...prev, email: rememberedEmail, rememberMe: true }));
+        }
+
+        // Check login state (mocked with token presence)
+        const token = localStorage.getItem('authToken');
+        setIsLoggedIn(!!token);
+    }, []);
 
     // Handle input changes
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,13 +67,53 @@ const Login: React.FC = () => {
     };
 
     // Handle form submission
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (validateForm()) {
-            console.log("Login Data:", formData);
-            alert("Login successful! Check console for details.");
+        if (!validateForm()) return;
+
+        try {
+            const response = await fetch("http://localhost:5000/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Store the received auth token
+                localStorage.setItem("authToken", data.token);
+
+                // Handle remember me functionality
+                if (formData.rememberMe) {
+                    localStorage.setItem("rememberedEmail", formData.email);
+                } else {
+                    localStorage.removeItem("rememberedEmail");
+                }
+
+                setIsLoggedIn(true);
+                alert("Login successful!");
+            } else {
+                alert(data.error || "Invalid credentials");
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            alert("An unexpected error occurred. Please try again.");
         }
+    };
+
+
+    // Handle logout
+    const handleLogout = () => {
+        localStorage.removeItem('authToken');
+        setIsLoggedIn(false);
+        alert("Logged out successfully!");
     };
 
     return (
@@ -70,9 +128,23 @@ const Login: React.FC = () => {
                         </span>
                     </div>
                     <nav className="flex items-center space-x-4">
-                        <a href="/" className="text-gray-600 hover:text-blue-600 transition-colors">Home</a>
-                        <a href="/solutions" className="text-gray-600 hover:text-blue-600 transition-colors">Solutions</a>
-                        <a href="/contact" className="text-gray-600 hover:text-blue-600 transition-colors">Contact</a>
+                        {isLoggedIn ? (
+                            <>
+                                <a href="/dashboard" className="text-gray-600 hover:text-blue-600 transition-colors">Dashboard</a>
+                                <button
+                                    onClick={handleLogout}
+                                    className="text-red-600 hover:text-red-800 transition-colors"
+                                >
+                                    Logout
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <a href="/" className="text-gray-600 hover:text-blue-600 transition-colors">Home</a>
+                                <a href="/solutions" className="text-gray-600 hover:text-blue-600 transition-colors">Solutions</a>
+                                <a href="/contact" className="text-gray-600 hover:text-blue-600 transition-colors">Contact</a>
+                            </>
+                        )}
                     </nav>
                 </div>
             </header>
@@ -118,13 +190,22 @@ const Login: React.FC = () => {
                             {/* Password */}
                             <div>
                                 <label className="block text-gray-600">Password</label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
-                                />
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <button
+                                        type="button"
+                                        className="absolute top-2 right-3 text-gray-500"
+                                        onClick={() => setShowPassword(prev => !prev)}
+                                    >
+                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                    </button>
+                                </div>
                                 {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
                             </div>
 

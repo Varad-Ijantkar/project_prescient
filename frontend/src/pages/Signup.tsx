@@ -72,14 +72,52 @@ const Signup: React.FC = () => {
     };
 
     // Handle form submission
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (validateForm()) {
-            console.log("Signup Data:", formData);
-            alert("Signup successful! Check console for details.");
+            try {
+                // Show loading state
+                console.log("Sending signup request...");
+
+                // Backend API endpoint
+                const apiUrl = "http://localhost:5000/api/auth/signup"; // Replace with your API endpoint
+
+                // Make the POST request
+                const response = await fetch(apiUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        full_name: formData.fullName,
+                        email: formData.email,
+                        password: formData.password,
+                    }),
+                });
+
+                // Check response
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log("Signup successful:", data);
+
+                    // Show success message
+                    alert("Signup successful! You can now log in.");
+                    // Redirect to login page (if needed)
+                    window.location.href = "/login";
+                } else {
+                    // Handle errors
+                    const errorData = await response.json();
+                    console.error("Signup error:", errorData);
+                    alert(errorData.message || "Signup failed. Please try again.");
+                }
+            } catch (error) {
+                console.error("Error during signup:", error);
+                alert("An unexpected error occurred. Please try again.");
+            }
         }
     };
+
 
     return (
         <div className="min-h-screen flex flex-col">
