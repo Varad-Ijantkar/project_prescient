@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Brain, ChevronRight, Lock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
-
 const Login: React.FC = () => {
     // Form state
     const [formData, setFormData] = useState({
@@ -20,6 +19,7 @@ const Login: React.FC = () => {
 
     // User login state (mocking with token check)
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+const [loginError, setLoginError] = useState<string>("");
 
     // Load remembered email on mount
     useEffect(() => {
@@ -87,10 +87,8 @@ const Login: React.FC = () => {
             const data = await response.json();
 
             if (response.ok) {
-                // Store the received auth token
                 localStorage.setItem("authToken", data.token);
 
-                // Handle remember me functionality
                 if (formData.rememberMe) {
                     localStorage.setItem("rememberedEmail", formData.email);
                 } else {
@@ -98,13 +96,13 @@ const Login: React.FC = () => {
                 }
 
                 setIsLoggedIn(true);
-                alert("Login successful!");
+                setLoginError(""); // Clear error on success
             } else {
-                alert(data.error || "Invalid credentials");
+                setLoginError(data.error || "Invalid credentials. Please try again.");
             }
         } catch (error) {
             console.error("Login error:", error);
-            alert("An unexpected error occurred. Please try again.");
+            setLoginError("An unexpected error occurred. Please try again.");
         }
     };
 
@@ -174,7 +172,7 @@ const Login: React.FC = () => {
                         <h2 className="text-3xl font-bold text-center text-blue-600 mb-6">Welcome Back</h2>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            {/* Email */}
+                            {/* Email Field */}
                             <div>
                                 <label className="block text-gray-600">Email</label>
                                 <input
@@ -203,7 +201,7 @@ const Login: React.FC = () => {
                                         className="absolute top-2 right-3 text-gray-500"
                                         onClick={() => setShowPassword(prev => !prev)}
                                     >
-                                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                        {showPassword ? <EyeOff className="h-5 w-5"/> : <Eye className="h-5 w-5"/>}
                                     </button>
                                 </div>
                                 {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
@@ -225,14 +223,13 @@ const Login: React.FC = () => {
                                     Forgot Password?
                                 </a>
                             </div>
-
+                            {loginError && <p className="text-red-500 text-sm text-center">{loginError}</p>}
                             {/* Submit Button */}
                             <button
                                 type="submit"
-                                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-all flex items-center justify-center space-x-2"
-                            >
+                                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-all flex items-center justify-center space-x-2">
                                 Login
-                                <ChevronRight className="h-5 w-5" />
+                                <ChevronRight className="h-5 w-5"/>
                             </button>
                         </form>
 
@@ -249,7 +246,7 @@ const Login: React.FC = () => {
                     <div className="grid md:grid-cols-4 gap-8">
                         <div>
                             <div className="flex items-center mb-4">
-                                <Brain className="h-8 w-8 text-blue-400" />
+                                <Brain className="h-8 w-8 text-blue-400"/>
                                 <span className="ml-2 text-xl font-bold">AttritionAI</span>
                             </div>
                             <p className="text-gray-400">
