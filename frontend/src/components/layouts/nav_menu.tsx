@@ -33,6 +33,14 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
         { name: 'Admin Panel', href: '/admin', icon: Shield },
     ];
 
+    const handleNavigation = (href: string) => {
+        setActivePath(href);
+        window.location.href = href;
+        if (window.innerWidth < 1024) {
+            setIsOpen(false);
+        }
+    };
+
     return (
         <>
             {/* Overlay for mobile only */}
@@ -58,15 +66,15 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
             {/* Desktop Toggle Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="hidden lg:flex fixed left-64 top-1/2 -translate-y-1/2 z-30 bg-white shadow-lg rounded-r-md p-1.5 transition-transform duration-300"
+                className="hidden lg:flex fixed left-64 top-1/2 -translate-y-1/2 z-30 bg-blue-600 shadow-lg rounded-r-md p-1.5 transition-transform duration-300"
                 style={{
                     transform: isOpen ? 'translateX(0)' : 'translateX(-256px)'
                 }}
             >
                 {isOpen ? (
-                    <ChevronLeft className="h-5 w-5 text-gray-600" />
+                    <ChevronLeft className="h-5 w-5 text-white" />
                 ) : (
-                    <ChevronRight className="h-5 w-5 text-gray-600" />
+                    <ChevronRight className="h-5 w-5 text-white" />
                 )}
             </button>
 
@@ -98,10 +106,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
                                             href={item.href}
                                             onClick={(e) => {
                                                 e.preventDefault();
-                                                setActivePath(item.href);
-                                                if (window.innerWidth < 1024) {
-                                                    setIsOpen(false);
-                                                }
+                                                handleNavigation(item.href);
                                             }}
                                             className={`flex items-center px-4 py-2 rounded-lg transition-colors duration-150 ${
                                                 isActive
