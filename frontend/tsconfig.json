@@ -1,14 +1,15 @@
 {
   "compilerOptions": {
     "jsx": "react-jsx",
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "types": ["node", "react", "react-dom"],
     "paths": {
-      "@/*": ["*"]
+      "@/*": ["./src/*"]
     },
     "strict": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,

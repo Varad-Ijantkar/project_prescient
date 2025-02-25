@@ -5,6 +5,7 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoutes";
+import EmployeeManagement from "./pages/EmployeeManagement";
 
 const AppRoutes: React.FC = () => {
     return (
@@ -17,6 +18,14 @@ const AppRoutes: React.FC = () => {
                 element={
                     <ProtectedRoute>
                         <Dashboard />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/employees"
+                element={
+                    <ProtectedRoute>
+                        <EmployeeManagement />
                     </ProtectedRoute>
                 }
             />

@@ -83,16 +83,16 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
             }`}>
                 <div className="flex flex-col h-full">
                     {/* Header with Logo */}
-                    <div className="p-4 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                                <Brain className="h-8 w-8 text-blue-600" />
-                                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                                    AttritionAI
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                    {/*<div className="p-4 border-b border-gray-200">*/}
+                    {/*    <div className="flex items-center justify-between">*/}
+                    {/*        <div className="flex items-center space-x-3">*/}
+                    {/*            <Brain className="h-8 w-8 text-blue-600" />*/}
+                    {/*            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">*/}
+                    {/*                AttritionAI*/}
+                    {/*            </span>*/}
+                    {/*        </div>*/}
+                    {/*    </div>*/}
+                    {/*</div>*/}
 
                     <div className="flex-grow p-4">
                         <ul className="space-y-2">
