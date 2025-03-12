@@ -1,5 +1,5 @@
 const express = require("express");
-const Employee = require("../models/Employee"); // Import Employee model
+const Employee = require("../models/Employee");
 const router = express.Router();
 
 // Fetch all employees
@@ -12,10 +12,10 @@ router.get("/", async (req, res) => {
     }
 });
 
-// Fetch a single employee by Employee ID (not ObjectId)
+// Fetch a single employee by Employee ID
 router.get("/:id", async (req, res) => {
     try {
-        const employee = await Employee.findOne({ employeeId: req.params.id }); // Search by employeeId
+        const employee = await Employee.findOne({ employeeId: req.params.id });
         if (!employee) {
             return res.status(404).json({ message: "Employee not found" });
         }
@@ -28,20 +28,21 @@ router.get("/:id", async (req, res) => {
 // Add a new employee
 router.post("/", async (req, res) => {
     try {
-        const { employeeId, name } = req.body;
+        const { employeeId, name, email } = req.body;
 
-        // 🔴 Validate required fields before inserting
-        if (!employeeId || !name) {
-            return res.status(400).json({ message: "Employee ID and Name are required" });
+        // Validate required fields
+        if (!employeeId || !name || !email) {
+            return res.status(400).json({ message: "Employee ID, Name, and Email are required" });
         }
 
-        // Check if Employee ID already exists
-        const existingEmployee = await Employee.findOne({ employeeId });
+        // Check if Employee ID or Email already exists
+        const existingEmployee = await Employee.findOne({ $or: [{ employeeId }, { email }] });
         if (existingEmployee) {
-            return res.status(400).json({ message: "Employee ID already exists" });
+            return res.status(400).json({
+                message: existingEmployee.employeeId === employeeId ? "Employee ID already exists" : "Email already exists"
+            });
         }
 
-        // ✅ Save new employee
         const newEmployee = new Employee(req.body);
         await newEmployee.save();
         res.status(201).json(newEmployee);
@@ -53,8 +54,16 @@ router.post("/", async (req, res) => {
 // Update an employee by Employee ID
 router.put("/:id", async (req, res) => {
     try {
+        const { email } = req.body;
+        if (email) {
+            const existingEmail = await Employee.findOne({ email, employeeId: { $ne: req.params.id } });
+            if (existingEmail) {
+                return res.status(400).json({ message: "Email already exists" });
+            }
+        }
+
         const updatedEmployee = await Employee.findOneAndUpdate(
-            { employeeId: req.params.id }, // Search by employeeId
+            { employeeId: req.params.id },
             req.body,
             { new: true, runValidators: true }
         );
@@ -73,30 +82,12 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
     try {
         const employee = await Employee.findOneAndDelete({ employeeId: req.params.id });
-
         if (!employee) {
             return res.status(404).json({ message: "Employee not found" });
         }
-
         res.json({ message: "Employee deleted successfully" });
     } catch (error) {
         res.status(500).json({ message: "Error deleting employee", error: error.message });
-    }
-});
-
-router.post("/bulk", async (req, res) => {
-    try {
-        const employees = req.body.employees;
-        if (!employees || employees.length === 0) {
-            return res.status(400).json({ message: "No employees provided" });
-        }
-
-        // ✅ Save all employees in one operation
-        await Employee.insertMany(employees);
-        res.status(201).json({ message: "Employees imported successfully" });
-    } catch (error) {
-        console.error("❌ Error importing employees:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
     }
 });
 

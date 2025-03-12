@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const employeeSchema = new mongoose.Schema({
     employeeId: { type: Number, required: true, unique: true },
     name: { type: String, required: true },
-
+    email: { type: String, required: true, unique: true }, // Added email field
     age: { type: Number, required: true },
     department: { type: String, required: true },
     jobRole: { type: String, required: true },
@@ -34,10 +34,9 @@ const employeeSchema = new mongoose.Schema({
     yearsInCurrentRole: { type: Number, required: true },
     yearsSinceLastPromotion: { type: Number, required: true },
     yearsWithCurrManager: { type: Number, required: true },
-
-    // Model Predictions (Not in original dataset)
-    attritionRisk: { type: Number}, // Predicted Attrition Probability (0-100%)
-    sentimentScore: { type: Number} // Sentiment Analysis Score (0-100%)
+    // Model Predictions
+    attritionRisk: { type: Number }, // Predicted Attrition Probability (0-100%)
+    sentimentScore: { type: Number } // Sentiment Analysis Score (0-100%)
 });
 
 const Employee = mongoose.model("Employee", employeeSchema);
