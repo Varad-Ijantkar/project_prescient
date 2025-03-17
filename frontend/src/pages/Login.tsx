@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Brain, ChevronRight, Lock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import {useNavigate} from "react-router-dom";
 const Login: React.FC = () => {
     // Form state
     const [formData, setFormData] = useState({
@@ -19,7 +20,8 @@ const Login: React.FC = () => {
 
     // User login state (mocking with token check)
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-const [loginError, setLoginError] = useState<string>("");
+    const [loginError, setLoginError] = useState<string>("");
+    const navigate = useNavigate(); // Add this
 
     // Load remembered email on mount
     useEffect(() => {
@@ -27,11 +29,9 @@ const [loginError, setLoginError] = useState<string>("");
         if (rememberedEmail) {
             setFormData(prev => ({ ...prev, email: rememberedEmail, rememberMe: true }));
         }
-
-        // Check login state (mocked with token presence)
-        const token = localStorage.getItem('authToken');
-        setIsLoggedIn(!!token);
-    }, []);
+        const token = localStorage.getItem('token'); // Match apiService.ts
+        if (token) navigate('/dashboard'); // Redirect if already logged in
+    }, [navigate]);
 
     // Handle input changes
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,59 +44,36 @@ const [loginError, setLoginError] = useState<string>("");
 
     // Validate form
     const validateForm = () => {
-        const newErrors = {
-            email: '',
-            password: ''
-        };
-
-        // Email validation
+        const newErrors = { email: '', password: '' };
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(formData.email)) {
-            newErrors.email = "Invalid email address";
-        }
-
-        // Password validation
-        if (formData.password.length < 6) {
-            newErrors.password = "Password must be at least 6 characters";
-        }
-
+        if (!emailRegex.test(formData.email)) newErrors.email = "Invalid email address";
+        if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
         setErrors(newErrors);
-
-        // Return true if no errors
         return Object.values(newErrors).every(error => error === '');
     };
 
     // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
         if (!validateForm()) return;
 
         try {
             const response = await fetch("http://localhost:5000/api/auth/login", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    email: formData.email,
-                    password: formData.password
-                }),
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: formData.email, password: formData.password }),
             });
-
             const data = await response.json();
-
             if (response.ok) {
-                localStorage.setItem("authToken", data.token);
-
+                localStorage.setItem("token", data.token); // Changed to "token"
                 if (formData.rememberMe) {
                     localStorage.setItem("rememberedEmail", formData.email);
                 } else {
                     localStorage.removeItem("rememberedEmail");
                 }
-
                 setIsLoggedIn(true);
-                setLoginError(""); // Clear error on success
+                setLoginError("");
+                navigate('/dashboard'); // Redirect to sentiment
             } else {
                 setLoginError(data.error || "Invalid credentials. Please try again.");
             }
@@ -109,9 +86,10 @@ const [loginError, setLoginError] = useState<string>("");
 
     // Handle logout
     const handleLogout = () => {
-        localStorage.removeItem('authToken');
+        localStorage.removeItem('token'); // Match apiService.ts
         setIsLoggedIn(false);
         alert("Logged out successfully!");
+        navigate('/login'); // Redirect to login
     };
 
     return (

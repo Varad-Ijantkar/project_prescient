@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoutes";
 import EmployeeManagement from "./pages/EmployeeManagement";
 import AttritionAnalysis from "./pages/AttritionAnalysis";
+import SentimentAnalysis from "./pages/SentimentAnalysis";
 
 const AppRoutes: React.FC = () => {
     return (
@@ -36,6 +37,14 @@ const AppRoutes: React.FC = () => {
                 <ProtectedRoute>
                     <AttritionAnalysis />
                 </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/sentiment"
+                element={
+                    <ProtectedRoute>
+                        <SentimentAnalysis />
+                    </ProtectedRoute>
                 }
             />
         </Routes>

@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { useNavigate } from 'react-router-dom'; // Add this import
 import { Brain, Bell, ChevronDown, User, Search } from "lucide-react";
 
 const Header: React.FC = () => {
+    const navigate = useNavigate(); // Add this for navigation
     const [notifications] = useState([
         "5 employees flagged as high risk.",
         "New attrition report available.",
@@ -10,6 +12,14 @@ const Header: React.FC = () => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const userImage = ""; // Replace with actual user image URL if available
+
+    // Logout function
+    const handleLogout = () => {
+        localStorage.removeItem('token'); // Clear the token
+        localStorage.removeItem('rememberedEmail'); // Optional: Clear remembered email
+        setShowDropdown(false); // Close the dropdown
+        navigate('/login'); // Redirect to login page
+    };
 
     return (
         <header className="bg-white shadow-sm">
@@ -87,7 +97,10 @@ const Header: React.FC = () => {
                                     <li className="px-4 py-2 text-gray-700 hover:bg-gray-100 cursor-pointer">
                                         Help & Support
                                     </li>
-                                    <li className="px-4 py-2 text-gray-700 hover:bg-gray-100 cursor-pointer">
+                                    <li
+                                        className="px-4 py-2 text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                        onClick={handleLogout} // Add logout handler here
+                                    >
                                         Logout
                                     </li>
                                 </ul>

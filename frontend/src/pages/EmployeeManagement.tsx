@@ -211,10 +211,14 @@ const EmployeeDialog: React.FC<EmployeeDialogProps> = ({
             newErrors.age = 'Age must be between 18 and 100';
         }
 
-        const ratingFields = ['environmentSatisfaction', 'jobInvolvement', 'jobSatisfaction', 'performanceRating', 'relationshipSatisfaction', 'workLifeBalance'];
+        const ratingFields: (keyof FormData)[] = [
+            'environmentSatisfaction', 'jobInvolvement', 'jobSatisfaction',
+            'performanceRating', 'relationshipSatisfaction', 'workLifeBalance'
+        ];
         ratingFields.forEach(field => {
             const value = formData[field];
-            if (value !== undefined && (value < 1 || value > 5)) {
+            const numericValue = Number(value); // Convert to number
+            if (value !== undefined && !isNaN(numericValue) && (numericValue < 1 || numericValue > 5)) {
                 newErrors[field] = 'Rating must be between 1 and 5';
             }
         });

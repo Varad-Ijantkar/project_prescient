@@ -2,35 +2,39 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const employeeRoutes = require("./routes/employeeRoutes"); // Import employee routes
+const jwt = require("jsonwebtoken");
+const employeeRoutes = require("./routes/employeeRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // Consistent secret
 
-// Middleware
 app.use(express.json());
 app.use(cors());
 
-// Routes
-const authRoutes = require("./routes/authRoutes");
-app.use("/api/auth", authRoutes);
-app.use("/api/employees", employeeRoutes);
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token provided' });
 
-// MongoDB Connection
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ message: 'Invalid token' });
+        req.user = user;
+        next();
+    });
+};
+
+app.use("/api/auth", authRoutes);
+app.use("/api/employees", authenticateToken, employeeRoutes); // Protect employee routes
+
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 })
-    .then(() => {
-        console.log("✅ MongoDB Connected to:", mongoose.connection.db.databaseName);
-    })
+    .then(() => console.log("✅ MongoDB Connected to:", mongoose.connection.db.databaseName))
     .catch((err) => console.error("❌ MongoDB Connection Error:", err));
 
+app.get("/", (req, res) => res.send("Backend is running..."));
 
-// Sample Route
-app.get("/", (req, res) => {
-    res.send("Backend is running...");
-});
-
-// Start Server
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

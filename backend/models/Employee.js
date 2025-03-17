@@ -36,7 +36,7 @@ const employeeSchema = new mongoose.Schema({
     yearsWithCurrManager: { type: Number, required: true },
     // Model Predictions
     attritionRisk: { type: Number }, // Predicted Attrition Probability (0-100%)
-    sentimentScore: { type: Number } // Sentiment Analysis Score (0-100%)
+    sentimentScore: { type: Number }
 });
 
 const Employee = mongoose.model("Employee", employeeSchema);
