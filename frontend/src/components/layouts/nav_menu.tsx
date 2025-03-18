@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard,
     Users,
@@ -11,8 +11,9 @@ import {
     Menu,
     X,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext'; // Assuming AuthContext provides user data
 
 interface NavigationMenuProps {
     isOpen: boolean;
@@ -20,7 +21,8 @@ interface NavigationMenuProps {
 }
 
 const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) => {
-    const [activePath, setActivePath] = React.useState('/dashboard');
+    const [activePath, setActivePath] = useState<string>(window.location.pathname); // Set initial active path from current URL
+    const { user } = useAuth(); // Assuming useAuth provides the user object with full_name
 
     const menuItems = [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -32,6 +34,16 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
         { name: 'Settings', href: '/settings', icon: Settings },
         { name: 'Admin Panel', href: '/admin', icon: Shield },
     ];
+
+    // Update activePath when the URL changes (e.g., browser navigation)
+    useEffect(() => {
+        const handleRouteChange = () => {
+            setActivePath(window.location.pathname);
+        };
+
+        window.addEventListener('popstate', handleRouteChange); // Handle back/forward navigation
+        return () => window.removeEventListener('popstate', handleRouteChange); // Cleanup
+    }, []);
 
     const handleNavigation = (href: string) => {
         setActivePath(href);
@@ -68,7 +80,7 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
                 onClick={() => setIsOpen(!isOpen)}
                 className="hidden lg:flex fixed left-64 top-1/2 -translate-y-1/2 z-30 bg-blue-600 shadow-lg rounded-r-md p-1.5 transition-transform duration-300"
                 style={{
-                    transform: isOpen ? 'translateX(0)' : 'translateX(-256px)'
+                    transform: isOpen ? 'translateX(0)' : 'translateX(-256px)',
                 }}
             >
                 {isOpen ? (
@@ -78,21 +90,23 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
                 )}
             </button>
 
-            <nav className={`bg-white border-r border-gray-200 w-64 fixed h-full z-30 transition-all duration-300 ease-in-out ${
-                isOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}>
+            <nav
+                className={`bg-white border-r border-gray-200 w-64 fixed h-full z-30 transition-all duration-300 ease-in-out ${
+                    isOpen ? 'translate-x-0' : '-translate-x-full'
+                }`}
+            >
                 <div className="flex flex-col h-full">
-                    {/* Header with Logo */}
-                    {/*<div className="p-4 border-b border-gray-200">*/}
-                    {/*    <div className="flex items-center justify-between">*/}
-                    {/*        <div className="flex items-center space-x-3">*/}
-                    {/*            <Brain className="h-8 w-8 text-blue-600" />*/}
-                    {/*            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">*/}
-                    {/*                AttritionAI*/}
-                    {/*            </span>*/}
-                    {/*        </div>*/}
-                    {/*    </div>*/}
-                    {/*</div>*/}
+                    {/* Header with Logo (commented out as per your code) */}
+                    {/* <div className="p-4 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <Brain className="h-8 w-8 text-blue-600" />
+                                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+                                    AttritionAI
+                                </span>
+                            </div>
+                        </div>
+                    </div> */}
 
                     <div className="flex-grow p-4">
                         <ul className="space-y-2">
@@ -114,9 +128,11 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
                                                     : 'text-gray-600 hover:bg-gray-50'
                                             }`}
                                         >
-                                            <Icon className={`h-5 w-5 mr-3 ${
-                                                isActive ? 'text-blue-600' : 'text-gray-400'
-                                            }`} />
+                                            <Icon
+                                                className={`h-5 w-5 mr-3 ${
+                                                    isActive ? 'text-blue-600' : 'text-gray-400'
+                                                }`}
+                                            />
                                             <span className="font-medium">{item.name}</span>
                                         </a>
                                     </li>
@@ -128,11 +144,15 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
                     <div className="p-4 border-t border-gray-200">
                         <div className="flex items-center space-x-3">
                             <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                <span className="text-sm font-medium text-gray-600">JD</span>
+                                <span className="text-sm font-medium text-gray-600">
+                                    {user?.full_name?.charAt(0) || 'U'} {/* Display first letter of full_name or 'U' as fallback */}
+                                </span>
                             </div>
                             <div className="flex-1">
-                                <p className="text-sm font-medium text-gray-800">John Doe</p>
-                                <p className="text-xs text-gray-500">HR Manager</p>
+                                <p className="text-sm font-medium text-gray-800">
+                                    {user?.full_name || 'Unknown User'} {/* Display full_name or 'Unknown User' as fallback */}
+                                </p>
+                                <p className="text-xs text-gray-500">HR Manager</p> {/* You can make this dynamic too if needed */}
                             </div>
                         </div>
                     </div>

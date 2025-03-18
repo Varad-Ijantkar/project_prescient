@@ -615,50 +615,105 @@ def upload_feedback():
             logger.error('Empty filename')
             return jsonify({'status': 'error', 'message': 'No file selected'}), 400
 
+        # Load CSV
         df = pd.read_csv(file)
         logger.info(f'CSV loaded with {len(df)} rows')
 
+        # Define column names
         feedback_col = 'How do you feel about your current working environment?'
         satisfaction_col = 'How satisfied are you with your current job overall?'
         comments_col = 'Is there anything specific (e.g., workload, management, growth opportunities) you would like to mention?'
+
+        # Validate required columns
+        required_cols = ['Employee ID', feedback_col]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            logger.error(f'Missing required columns: {missing_cols}')
+            return jsonify({'status': 'error', 'message': f'Missing columns: {missing_cols}'}), 400
+
+        # Load DistilBERT model for sentiment analysis
         tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased-finetuned-sst-2-english')
         model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased-finetuned-sst-2-english')
-        results = []
 
+        feedbacks = []
+
+        # Process each row in the CSV
         for index, row in df.iterrows():
-            feedback = str(row[feedback_col]) if pd.notna(row[feedback_col]) else ''
-            if not feedback or feedback.lower() == 'nan':
-                logger.warning(f'No feedback for employee {row["Employee ID"]}, skipping sentiment')
-                sentiment_score = 0.0
-            else:
-                inputs = tokenizer(feedback, return_tensors='pt', truncation=True, padding=True, max_length=512)
-                outputs = model(**inputs)
-                scores = torch.softmax(outputs.logits, dim=1).detach().numpy()[0]
-                logger.info(f"Employee {row['Employee ID']} raw scores: negative={scores[0]}, positive={scores[1]}")
-                sentiment_score = float(scores[1] - scores[0])  # Scale -1 to 1
-
-            employee = employees_collection.find_one({'employeeId': int(row['Employee ID'])})
-            if not employee:
-                logger.warning(f'Employee ID {row["Employee ID"]} not found, skipping')
+            employee_id = int(row['Employee ID']) if pd.notna(row['Employee ID']) else None
+            if not employee_id:
+                logger.warning(f'No valid Employee ID at row {index}, skipping')
                 continue
 
-            sentiment_feedback = {
-                'employeeId': int(row['Employee ID']),  # Add employeeId
-                'employee': str(employee['_id']),  # Keep ObjectId as string for reference
+            feedback = str(row[feedback_col]) if pd.notna(row[feedback_col]) else ''
+            satisfaction = (
+                int(row[satisfaction_col])
+                if satisfaction_col in df.columns and pd.notna(row[satisfaction_col])
+                else None
+            )
+            comments = (
+                str(row[comments_col])
+                if comments_col in df.columns and pd.notna(row[comments_col])
+                else ''
+            )
+
+            # Check if employee exists
+            employee = employees_collection.find_one({'employeeId': employee_id})
+            if not employee:
+                logger.warning(f'Employee ID {employee_id} not found, skipping')
+                continue
+
+            # Sentiment analysis
+            sentiment_score = 0.0
+            if feedback and feedback.lower() != 'nan':
+                inputs = tokenizer(feedback, return_tensors='pt', truncation=True, padding=True, max_length=512)
+                with torch.no_grad():
+                    outputs = model(**inputs)
+                scores = torch.softmax(outputs.logits, dim=1).detach().numpy()[0]
+                logger.info(f"Employee {employee_id} raw scores: negative={scores[0]}, positive={scores[1]}")
+                sentiment_score = float(scores[1] - scores[0])  # Scale -1 to 1
+
+            # Prepare feedback data for SentimentFeedback
+            feedback_data = {
+                'employee': employee['_id'],  # Use ObjectId directly
+                'employeeId': employee_id,    # Optional: for easier querying
                 'sentimentScore': sentiment_score,
-                'date': datetime.strptime(row['Timestamp'], '%m/%d/%Y %H:%M:%S') if 'Timestamp' in df.columns and pd.notna(row['Timestamp']) else datetime.now(),
+                'date': (
+                    datetime.strptime(row['Timestamp'], '%m/%d/%Y %H:%M:%S')
+                    if 'Timestamp' in df.columns and pd.notna(row['Timestamp'])
+                    else datetime.now()
+                ),
                 'feedbackText': feedback,
-                'satisfactionScore': int(row[satisfaction_col]) if satisfaction_col in df.columns and pd.notna(row[satisfaction_col]) else None,
-                'additionalComments': str(row[comments_col]) if comments_col in df.columns and pd.notna(row[comments_col]) else ''
+                'satisfactionScore': satisfaction,
+                'additionalComments': comments
             }
-            sentiment_collection.insert_one(sentiment_feedback)
-            results.append({
-                'employeeId': int(row['Employee ID']),
-                'sentimentScore': sentiment_score
+
+            # Insert into SentimentFeedback collection
+            sentiment_result = sentiment_collection.insert_one(feedback_data)
+            logger.info(f'Inserted feedback for employee {employee_id} with ID {sentiment_result.inserted_id}')
+
+            # Update Employee collection with the sentimentScore
+            employee_result = employees_collection.update_one(
+                {'employeeId': employee_id},
+                {'$set': {'sentimentScore': sentiment_score}}
+            )
+            if employee_result.modified_count > 0:
+                logger.info(f'Updated Employee {employee_id} with sentimentScore: {sentiment_score}')
+            else:
+                logger.info(f'No update needed for Employee {employee_id} (sentimentScore unchanged)')
+
+            # Add to response for Node.js
+            feedbacks.append({
+                'employeeId': employee_id,
+                'sentimentScore': sentiment_score,
+                'feedbackText': feedback,
+                'satisfactionScore': satisfaction,
+                'additionalComments': comments
             })
 
-        logger.info(f'Processed {len(results)} feedback entries')
-        return jsonify({'status': 'success', 'message': 'Feedback processed', 'results': results})
+        logger.info(f'Processed and synced {len(feedbacks)} feedback entries')
+        return jsonify({
+            'feedbacks': feedbacks  # Return for Node.js to log or pass through
+        })
 
     except Exception as e:
         logger.error(f'Error in /upload-feedback: {str(e)}')
