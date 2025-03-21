@@ -1,48 +1,47 @@
+// src/pages/Login.tsx
 import React, { useState, useEffect } from "react";
 import { Brain, ChevronRight, Lock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
-import {useNavigate} from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { toast } from "react-hot-toast"; // Add toast for user feedback
+
 const Login: React.FC = () => {
-    // Form state
     const [formData, setFormData] = useState({
         email: '',
         password: '',
-        rememberMe: false
+        rememberMe: false,
     });
 
-    // Validation errors state
     const [errors, setErrors] = useState({
         email: '',
-        password: ''
+        password: '',
     });
 
-    // Password visibility state
     const [showPassword, setShowPassword] = useState(false);
-
-    // User login state (mocking with token check)
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [loginError, setLoginError] = useState<string>("");
-    const navigate = useNavigate(); // Add this
 
-    // Load remembered email on mount
+    const navigate = useNavigate();
+    const { login, logout, token } = useAuth();
+
     useEffect(() => {
         const rememberedEmail = localStorage.getItem('rememberedEmail');
         if (rememberedEmail) {
             setFormData(prev => ({ ...prev, email: rememberedEmail, rememberMe: true }));
         }
-        const token = localStorage.getItem('token'); // Match apiService.ts
-        if (token) navigate('/dashboard'); // Redirect if already logged in
-    }, [navigate]);
+        // Only redirect to /dashboard if the user is not explicitly on /login
+        if (token && window.location.pathname !== '/login') {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [navigate, token]);
 
-    // Handle input changes
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: type === 'checkbox' ? checked : value,
         }));
     };
 
-    // Validate form
     const validateForm = () => {
         const newErrors = { email: '', password: '' };
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,7 +51,6 @@ const Login: React.FC = () => {
         return Object.values(newErrors).every(error => error === '');
     };
 
-    // Handle form submission
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!validateForm()) return;
@@ -65,15 +63,14 @@ const Login: React.FC = () => {
             });
             const data = await response.json();
             if (response.ok) {
-                localStorage.setItem("token", data.token); // Changed to "token"
+                login(data.token);
                 if (formData.rememberMe) {
                     localStorage.setItem("rememberedEmail", formData.email);
                 } else {
                     localStorage.removeItem("rememberedEmail");
                 }
-                setIsLoggedIn(true);
                 setLoginError("");
-                navigate('/dashboard'); // Redirect to sentiment
+                toast.success("Logged in successfully");
             } else {
                 setLoginError(data.error || "Invalid credentials. Please try again.");
             }
@@ -83,18 +80,15 @@ const Login: React.FC = () => {
         }
     };
 
-
-    // Handle logout
     const handleLogout = () => {
-        localStorage.removeItem('token'); // Match apiService.ts
-        setIsLoggedIn(false);
-        alert("Logged out successfully!");
-        navigate('/login'); // Redirect to login
+        logout();
+        localStorage.removeItem('authToken'); // Ensure token is cleared
+        toast.success("Logged out successfully");
+        navigate("/login");
     };
 
     return (
         <div className="min-h-screen flex flex-col">
-            {/* Enhanced Header */}
             <header className="bg-white shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
                     <div className="flex items-center space-x-3">
@@ -104,9 +98,9 @@ const Login: React.FC = () => {
                         </span>
                     </div>
                     <nav className="flex items-center space-x-4">
-                        {isLoggedIn ? (
+                        {token ? (
                             <>
-                                <a href="/dashboard" className="text-gray-600 hover:text-blue-600 transition-colors">Dashboard</a>
+                                <Link to="/dashboard" className="text-gray-600 hover:text-blue-600 transition-colors">Dashboard</Link>
                                 <button
                                     onClick={handleLogout}
                                     className="text-red-600 hover:text-red-800 transition-colors"
@@ -116,19 +110,17 @@ const Login: React.FC = () => {
                             </>
                         ) : (
                             <>
-                                <a href="/" className="text-gray-600 hover:text-blue-600 transition-colors">Home</a>
-                                <a href="/solutions" className="text-gray-600 hover:text-blue-600 transition-colors">Solutions</a>
-                                <a href="/contact" className="text-gray-600 hover:text-blue-600 transition-colors">Contact</a>
+                                <Link to="/" className="text-gray-600 hover:text-blue-600 transition-colors">Home</Link>
+                                <Link to="/solutions" className="text-gray-600 hover:text-blue-600 transition-colors">Solutions</Link>
+                                <Link to="/contact" className="text-gray-600 hover:text-blue-600 transition-colors">Contact</Link>
                             </>
                         )}
                     </nav>
                 </div>
             </header>
 
-            {/* Main Content */}
             <main className="flex-grow bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center px-4 py-12">
                 <div className="bg-white shadow-2xl rounded-2xl overflow-hidden max-w-4xl w-full grid md:grid-cols-2">
-                    {/* Decorative Left Side */}
                     <div className="hidden md:block bg-gradient-to-r from-blue-600 to-blue-800 text-white p-12 flex flex-col justify-center">
                         <div className="space-y-6">
                             <div className="bg-white/20 rounded-full w-16 h-16 flex items-center justify-center">
@@ -145,12 +137,10 @@ const Login: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Login Form */}
                     <div className="p-8 md:p-12">
                         <h2 className="text-3xl font-bold text-center text-blue-600 mb-6">Welcome Back</h2>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            {/* Email Field */}
                             <div>
                                 <label className="block text-gray-600">Email</label>
                                 <input
@@ -163,7 +153,6 @@ const Login: React.FC = () => {
                                 {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
                             </div>
 
-                            {/* Password */}
                             <div>
                                 <label className="block text-gray-600">Password</label>
                                 <div className="relative">
@@ -185,7 +174,6 @@ const Login: React.FC = () => {
                                 {errors.password && <p className="text-red-500 text-sm">{errors.password}</p>}
                             </div>
 
-                            {/* Remember Me & Forgot Password */}
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center space-x-2">
                                     <input
@@ -197,12 +185,11 @@ const Login: React.FC = () => {
                                     />
                                     <label className="text-gray-600">Remember me</label>
                                 </div>
-                                <a href="/forgot-password" className="text-blue-600 hover:underline">
+                                <Link to="/forgot-password" className="text-blue-600 hover:underline">
                                     Forgot Password?
-                                </a>
+                                </Link>
                             </div>
                             {loginError && <p className="text-red-500 text-sm text-center">{loginError}</p>}
-                            {/* Submit Button */}
                             <button
                                 type="submit"
                                 className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-all flex items-center justify-center space-x-2">
@@ -212,13 +199,12 @@ const Login: React.FC = () => {
                         </form>
 
                         <p className="text-gray-600 text-center mt-4">
-                            Don't have an account? <a href="/signup" className="text-blue-600 underline">Sign Up</a>
+                            Don't have an account? <Link to="/signup" className="text-blue-600 underline">Sign Up</Link>
                         </p>
                     </div>
                 </div>
             </main>
 
-            {/* Enhanced Footer */}
             <footer className="bg-gray-900 text-white">
                 <div className="max-w-7xl mx-auto px-4 py-12">
                     <div className="grid md:grid-cols-4 gap-8">

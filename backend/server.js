@@ -5,10 +5,11 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const employeeRoutes = require("./routes/employeeRoutes");
 const authRoutes = require("./routes/authRoutes");
+const { authenticate } = require("./routes/authRoutes"); // Import authenticate
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // Consistent secret
+const JWT_SECRET = process.env.JWT_SECRET || 'PROJECT_PRESCIENT'; // Consistent secret
 
 app.use(express.json());
 app.use(cors());
@@ -26,6 +27,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 app.use("/api/auth", authRoutes);
+app.use("/api", authRoutes); // Add this to handle /api/user
 app.use("/api/employees", authenticateToken, employeeRoutes); // Protect employee routes
 
 mongoose.connect(process.env.MONGO_URI, {

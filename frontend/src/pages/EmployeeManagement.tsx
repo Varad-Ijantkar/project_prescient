@@ -1,3 +1,4 @@
+// src/pages/EmployeeManagement.tsx
 import React, { useState, useEffect } from 'react';
 import {
     Dialog,
@@ -22,6 +23,8 @@ import { toast } from "react-hot-toast";
 import NavigationMenu from "../components/layouts/nav_menu";
 import Footer from "../components/layouts/footer";
 import Header from "../components/layouts/header";
+import { fetchProtectedData, deleteProtectedData } from '../services/apiService';
+import { useAuth } from '../context/AuthContext'; // Import useAuth to access logout
 
 interface Employee {
     employeeId: number;
@@ -217,7 +220,7 @@ const EmployeeDialog: React.FC<EmployeeDialogProps> = ({
         ];
         ratingFields.forEach(field => {
             const value = formData[field];
-            const numericValue = Number(value); // Convert to number
+            const numericValue = Number(value);
             if (value !== undefined && !isNaN(numericValue) && (numericValue < 1 || numericValue > 5)) {
                 newErrors[field] = 'Rating must be between 1 and 5';
             }
@@ -235,7 +238,6 @@ const EmployeeDialog: React.FC<EmployeeDialogProps> = ({
 
         setLoading(true);
         try {
-            // Clone formData and remove _id if it exists (from MongoDB)
             const processedData = { ...formData };
             if ('_id' in processedData) {
                 delete processedData['_id'];
@@ -260,7 +262,6 @@ const EmployeeDialog: React.FC<EmployeeDialogProps> = ({
 
             console.log("Sending data to predict:", processedData);
 
-            // Step 1: Send to Flask for prediction and save
             const predictResponse = await fetch('http://localhost:5001/predict', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -280,9 +281,8 @@ const EmployeeDialog: React.FC<EmployeeDialogProps> = ({
                 throw new Error(String(predictData.message || 'Prediction failed'));
             }
 
-            // Since Flask already saved it, we’re done—no need for Node.js save
-            onSubmit(predictData); // Pass the saved data back
-            onOpenChange(false);   // Close the dialog
+            onSubmit(predictData);
+            onOpenChange(false);
         } catch (error) {
             console.error(isEditing ? 'Error updating employee:' : 'Error adding employee:', error);
             toast.error('Something went wrong. Please try again.');
@@ -366,6 +366,7 @@ const EmployeeManagement: React.FC = () => {
     const [loadingPredictions, setLoadingPredictions] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
     const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+    const { logout } = useAuth(); // Access logout from AuthContext
 
     useEffect(() => {
         fetchEmployees();
@@ -432,8 +433,8 @@ const EmployeeManagement: React.FC = () => {
                 : `Employee ${data.name} added successfully!`;
             showAlert(successMessage, 'success');
             toast.success(successMessage);
-            await fetchEmployees(); // Refresh the list
-            setIsDialogOpen(false); // Already closed, but just in case
+            await fetchEmployees();
+            setIsDialogOpen(false);
         } catch (error) {
             console.error(isEditing ? 'Error updating employee:' : 'Error adding employee:', error);
             showAlert('An error occurred', 'error');
@@ -443,21 +444,24 @@ const EmployeeManagement: React.FC = () => {
 
     const handleDelete = async (employeeId: number): Promise<void> => {
         try {
-            const response = await fetch(`http://localhost:5000/api/employees/${employeeId}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            if (response.ok) {
-                showAlert('Employee deleted successfully', 'success');
-                await fetchEmployees();
-            } else {
-                const errorData = await response.json();
-                showAlert(`Error: ${errorData.message}`, 'error');
-            }
-        } catch (error) {
+            // Use deleteProtectedData with the correct Flask backend URL
+            await deleteProtectedData(`/api/employees/${employeeId}`, 'http://localhost:5001');
+            showAlert('Employee deleted successfully', 'success');
+            toast.success('Employee deleted successfully');
+            await fetchEmployees();
+        } catch (error: any) {
             console.error('Delete request failed:', error);
-            showAlert('Error deleting employee', 'error');
+            if (error.message === 'TokenExpired') {
+                logout(); // Log out if token is expired
+                showAlert('Session expired. Please log in again.', 'error');
+                toast.error('Session expired. Please log in again.');
+            } else if (error.message.includes('401')) {
+                showAlert('Unauthorized: You do not have permission to delete this employee.', 'error');
+                toast.error('Unauthorized: You do not have permission to delete this employee.');
+            } else {
+                showAlert('Error deleting employee', 'error');
+                toast.error('Error deleting employee');
+            }
         }
     };
 
@@ -503,8 +507,8 @@ const EmployeeManagement: React.FC = () => {
                     yearsInCurrentRole: Number(row.yearsInCurrentRole) || 0,
                     yearsSinceLastPromotion: Number(row.yearsSinceLastPromotion) || 0,
                     yearsWithCurrManager: Number(row.yearsWithCurrManager) || 0,
-                    attritionRisk: Number(row.attritionRisk) || 0, // Will be overwritten by Flask
-                    sentimentScore: Number(row.sentimentScore) || 0, // Will be overwritten by Flask
+                    attritionRisk: Number(row.attritionRisk) || 0,
+                    sentimentScore: Number(row.sentimentScore) || 0,
                 }));
 
                 try {

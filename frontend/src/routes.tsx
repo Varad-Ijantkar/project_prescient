@@ -1,5 +1,6 @@
+// src/routes.tsx
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
@@ -34,9 +35,9 @@ const AppRoutes: React.FC = () => {
             <Route
                 path="/attrition"
                 element={
-                <ProtectedRoute>
-                    <AttritionAnalysis />
-                </ProtectedRoute>
+                    <ProtectedRoute>
+                        <AttritionAnalysis />
+                    </ProtectedRoute>
                 }
             />
             <Route
@@ -47,6 +48,7 @@ const AppRoutes: React.FC = () => {
                     </ProtectedRoute>
                 }
             />
+            <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
     );
 };

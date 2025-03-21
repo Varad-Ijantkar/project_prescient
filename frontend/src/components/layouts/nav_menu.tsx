@@ -1,3 +1,4 @@
+// src/components/layouts/nav_menu.tsx
 import React, { useState, useEffect } from 'react';
 import {
     LayoutDashboard,
@@ -13,7 +14,7 @@ import {
     ChevronLeft,
     ChevronRight,
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext'; // Assuming AuthContext provides user data
+import { useAuth } from '../../context/AuthContext';
 
 interface NavigationMenuProps {
     isOpen: boolean;
@@ -21,8 +22,8 @@ interface NavigationMenuProps {
 }
 
 const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) => {
-    const [activePath, setActivePath] = useState<string>(window.location.pathname); // Set initial active path from current URL
-    const { user } = useAuth(); // Assuming useAuth provides the user object with full_name
+    const [activePath, setActivePath] = useState<string>(window.location.pathname);
+    const { user, logout } = useAuth();
 
     const menuItems = [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -35,14 +36,13 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
         { name: 'Admin Panel', href: '/admin', icon: Shield },
     ];
 
-    // Update activePath when the URL changes (e.g., browser navigation)
     useEffect(() => {
         const handleRouteChange = () => {
             setActivePath(window.location.pathname);
         };
 
-        window.addEventListener('popstate', handleRouteChange); // Handle back/forward navigation
-        return () => window.removeEventListener('popstate', handleRouteChange); // Cleanup
+        window.addEventListener('popstate', handleRouteChange);
+        return () => window.removeEventListener('popstate', handleRouteChange);
     }, []);
 
     const handleNavigation = (href: string) => {
@@ -55,7 +55,6 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
 
     return (
         <>
-            {/* Overlay for mobile only */}
             {isOpen && (
                 <div
                     className="fixed inset-0 bg-black bg-opacity-50 lg:bg-opacity-0 lg:hidden z-20"
@@ -63,7 +62,6 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
                 />
             )}
 
-            {/* Mobile Toggle Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="fixed top-4 left-4 z-30 lg:hidden p-2 rounded-md bg-white shadow-lg"
@@ -75,7 +73,6 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
                 )}
             </button>
 
-            {/* Desktop Toggle Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="hidden lg:flex fixed left-64 top-1/2 -translate-y-1/2 z-30 bg-blue-600 shadow-lg rounded-r-md p-1.5 transition-transform duration-300"
@@ -96,18 +93,6 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
                 }`}
             >
                 <div className="flex flex-col h-full">
-                    {/* Header with Logo (commented out as per your code) */}
-                    {/* <div className="p-4 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                                <Brain className="h-8 w-8 text-blue-600" />
-                                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                                    AttritionAI
-                                </span>
-                            </div>
-                        </div>
-                    </div> */}
-
                     <div className="flex-grow p-4">
                         <ul className="space-y-2">
                             {menuItems.map((item) => {
@@ -145,15 +130,21 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ isOpen, setIsOpen }) =>
                         <div className="flex items-center space-x-3">
                             <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
                                 <span className="text-sm font-medium text-gray-600">
-                                    {user?.full_name?.charAt(0) || 'U'} {/* Display first letter of full_name or 'U' as fallback */}
+                                    {user?.full_name?.charAt(0) || 'U'}
                                 </span>
                             </div>
                             <div className="flex-1">
                                 <p className="text-sm font-medium text-gray-800">
-                                    {user?.full_name || 'Unknown User'} {/* Display full_name or 'Unknown User' as fallback */}
+                                    {user?.full_name || 'Unknown User'}
                                 </p>
-                                <p className="text-xs text-gray-500">HR Manager</p> {/* You can make this dynamic too if needed */}
+                                <p className="text-xs text-gray-500">HR Manager</p>
                             </div>
+                            <button
+                                onClick={logout}
+                                className="text-sm text-gray-600 hover:text-red-600"
+                            >
+                                Logout
+                            </button>
                         </div>
                     </div>
                 </div>

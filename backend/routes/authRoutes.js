@@ -65,11 +65,21 @@ router.post("/login", async (req, res) => {
     }
 });
 
-// Protected Route (Example)
 router.get("/me", authenticate, async (req, res) => {
     try {
         const user = await User.findById(req.user.userId).select("-password");
         res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+// Add /api/user to match the frontend's request
+router.get("/user", authenticate, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId).select("full_name email");
+        if (!user) return res.status(404).json({ error: "User not found" });
+        res.json({ full_name: user.full_name, email: user.email });
     } catch (error) {
         res.status(500).json({ error: "Server error" });
     }
