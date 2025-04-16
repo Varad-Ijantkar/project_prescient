@@ -1,4 +1,3 @@
-// src/pages/EmployeeManagement.tsx
 import React, { useState, useEffect } from 'react';
 import {
     Dialog,
@@ -24,7 +23,7 @@ import NavigationMenu from "../components/layouts/nav_menu";
 import Footer from "../components/layouts/footer";
 import Header from "../components/layouts/header";
 import { fetchProtectedData, deleteProtectedData } from '../services/apiService';
-import { useAuth } from '../context/AuthContext'; // Import useAuth to access logout
+import { useAuth } from '../context/AuthContext';
 
 interface Employee {
     employeeId: number;
@@ -61,9 +60,9 @@ interface Employee {
     yearsSinceLastPromotion: number;
     yearsWithCurrManager: number;
     attritionRisk: number;
-    sentimentScore: number;
+    sentimentScore: number | null;
 
-    [key: string]: string | number | undefined;
+    [key: string]: string | number | undefined | null;
 }
 
 type FormData = Employee;
@@ -122,7 +121,7 @@ const INITIAL_FORM_DATA: FormData = {
     yearsSinceLastPromotion: 0,
     yearsWithCurrManager: 0,
     attritionRisk: 0,
-    sentimentScore: 0
+    sentimentScore: null
 };
 
 interface DeleteConfirmationDialogProps {
@@ -250,8 +249,7 @@ const EmployeeDialog: React.FC<EmployeeDialogProps> = ({
                 'percentSalaryHike', 'performanceRating', 'relationshipSatisfaction',
                 'stockOptionLevel', 'totalWorkingYears', 'trainingTimesLastYear',
                 'workLifeBalance', 'yearsAtCompany', 'yearsInCurrentRole',
-                'yearsSinceLastPromotion', 'yearsWithCurrManager', 'attritionRisk',
-                'sentimentScore'
+                'yearsSinceLastPromotion', 'yearsWithCurrManager', 'attritionRisk'
             ];
 
             numericFields.forEach(field => {
@@ -259,6 +257,9 @@ const EmployeeDialog: React.FC<EmployeeDialogProps> = ({
                     processedData[field] = Number(processedData[field]);
                 }
             });
+
+            // Explicitly set sentimentScore to null for prediction if not provided
+            processedData.sentimentScore = null;
 
             console.log("Sending data to predict:", processedData);
 
@@ -279,6 +280,11 @@ const EmployeeDialog: React.FC<EmployeeDialogProps> = ({
 
             if (!predictResponse.ok) {
                 throw new Error(String(predictData.message || 'Prediction failed'));
+            }
+
+            // Override sentimentScore with null if present in response and not intended
+            if (predictData.sentimentScore !== undefined && predictData.sentimentScore !== null) {
+                predictData.sentimentScore = null;
             }
 
             onSubmit(predictData);
@@ -366,7 +372,7 @@ const EmployeeManagement: React.FC = () => {
     const [loadingPredictions, setLoadingPredictions] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
     const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
-    const { logout } = useAuth(); // Access logout from AuthContext
+    const { logout } = useAuth();
 
     useEffect(() => {
         fetchEmployees();
@@ -389,8 +395,8 @@ const EmployeeManagement: React.FC = () => {
             }
             const data = await response.json();
             console.log('Fetched employees:', data);
-            setEmployees(data);
-            setFilteredEmployees(data);
+            setEmployees(data.map((emp: Employee) => ({ ...emp, sentimentScore: emp.sentimentScore || null })));
+            setFilteredEmployees(data.map((emp: Employee) => ({ ...emp, sentimentScore: emp.sentimentScore || null })));
         } catch (error) {
             console.error('Error fetching employees:', error);
             showAlert('Error fetching employees', 'error');
@@ -444,7 +450,6 @@ const EmployeeManagement: React.FC = () => {
 
     const handleDelete = async (employeeId: number): Promise<void> => {
         try {
-            // Use deleteProtectedData with the correct Flask backend URL
             await deleteProtectedData(`/api/employees/${employeeId}`, 'http://localhost:5001');
             showAlert('Employee deleted successfully', 'success');
             toast.success('Employee deleted successfully');
@@ -452,7 +457,7 @@ const EmployeeManagement: React.FC = () => {
         } catch (error: any) {
             console.error('Delete request failed:', error);
             if (error.message === 'TokenExpired') {
-                logout(); // Log out if token is expired
+                logout();
                 showAlert('Session expired. Please log in again.', 'error');
                 toast.error('Session expired. Please log in again.');
             } else if (error.message.includes('401')) {
@@ -508,7 +513,7 @@ const EmployeeManagement: React.FC = () => {
                     yearsSinceLastPromotion: Number(row.yearsSinceLastPromotion) || 0,
                     yearsWithCurrManager: Number(row.yearsWithCurrManager) || 0,
                     attritionRisk: Number(row.attritionRisk) || 0,
-                    sentimentScore: Number(row.sentimentScore) || 0,
+                    sentimentScore: null // Force sentimentScore to null on import
                 }));
 
                 try {
@@ -519,6 +524,13 @@ const EmployeeManagement: React.FC = () => {
                     });
 
                     if (response.ok) {
+                        const result = await response.json();
+                        const updatedEmployees = result.employees || employees; // Use returned employees or original if not returned
+                        await fetch("http://localhost:5001/api/employees/bulk", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ employees: updatedEmployees }),
+                        });
                         showAlert("Employees imported successfully with predictions", "success");
                         event.target.value = "";
                         await fetchEmployees();
@@ -557,7 +569,7 @@ const EmployeeManagement: React.FC = () => {
 
     const handleEdit = (employee: Employee) => {
         setIsEditing(true);
-        setCurrentFormData(employee);
+        setCurrentFormData({ ...employee, sentimentScore: employee.sentimentScore || null });
         setIsDialogOpen(true);
     };
 

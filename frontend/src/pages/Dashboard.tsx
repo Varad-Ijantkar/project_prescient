@@ -114,7 +114,6 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
 
                 // Fetch sentiment data
                 const sentimentResponse = await fetchProtectedData('/api/employees/sentiment?type=all');
-                console.log('Sentiment Response:', sentimentResponse);
                 const trendData = sentimentResponse.trendData || [];
                 const normalizedTrendData = trendData.length === 0
                     ? [
@@ -130,27 +129,19 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
 
                 // Fetch high-risk employees
                 const highRiskResponse = await fetchProtectedData('/api/employees/high-risk');
-                console.log('High Risk Response:', highRiskResponse);
                 const highRiskData: Employee[] = highRiskResponse.data || [];
-                console.log('High Risk Employees Count:', highRiskData.length);
-                console.log('High Risk Employees Details:', highRiskData);
-                highRiskData.forEach(emp => console.log(`High Risk Employee: ${emp.name}, Attrition Risk: ${emp.attritionRisk}, Sentiment Score: ${emp.sentimentScore}, Tag: ${getSentimentTag(emp.sentimentScore)}`));
                 setHighRiskEmployees(highRiskData);
 
                 // Fetch total employees
                 const totalResponse = await fetchProtectedData('/api/employees/total');
-                console.log('Total Response:', totalResponse);
-                console.log('Total Employees Count:', totalResponse.total);
                 setTotalEmployees(totalResponse.total || 0);
 
                 // Fetch department risk distribution
                 const riskDistResponse = await fetchProtectedData('/api/employees/risk-distribution');
-                console.log('Risk Distribution Response:', riskDistResponse);
                 setDepartmentRiskData(riskDistResponse.data || []);
 
                 // Fetch average sentiment score and trend
                 const sentimentScoreResponse = await fetchProtectedData('/api/employees/sentiment-score');
-                console.log('Sentiment Score Response:', sentimentScoreResponse);
                 setSentimentScore({
                     averageScore: sentimentScoreResponse.averageScore || 0,
                     trend: sentimentScoreResponse.trend || 0,
@@ -158,7 +149,6 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
 
                 // Fetch average attrition risk and trend
                 const attritionRiskResponse = await fetchProtectedData('/api/employees/attrition-risk');
-                console.log('Attrition Risk Response:', attritionRiskResponse);
                 setAttritionRisk({
                     riskLevel: attritionRiskResponse.riskLevel || 'Low',
                     trend: attritionRiskResponse.trend || 'No change',
@@ -166,8 +156,6 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
 
                 // Fetch all employees
                 const allEmployeesResponse = await fetchProtectedData('/api/employees');
-                console.log('All Employees Response:', allEmployeesResponse);
-                console.log('All Employees Count:', allEmployeesResponse.length);
                 setAllEmployees(allEmployeesResponse || []);
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
@@ -208,7 +196,7 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
         return distribution;
     }, [allEmployees]);
 
-    // Calculate risk distribution for bar chart
+    // Calculate risk distribution for bar chart with updated thresholds
     const riskDistribution: RiskDistributionData[] = useMemo(() => {
         const distribution: RiskDistributionData[] = [];
         const riskMap: { [key: string]: { low: number; medium: number; high: number } } = {};
@@ -218,13 +206,10 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
                 if (!riskMap[employee.department]) {
                     riskMap[employee.department] = { low: 0, medium: 0, high: 0 };
                 }
-                if (employee.attritionRisk >= 50) {
-                    riskMap[employee.department].high += 1;
-                } else if (employee.attritionRisk >= 45) {
-                    riskMap[employee.department].medium += 1;
-                } else {
-                    riskMap[employee.department].low += 1;
-                }
+                const riskLevel = employee.attritionRisk > 75 ? 'high' : employee.attritionRisk >= 45 ? 'medium' : 'low';
+                if (riskLevel === 'high') riskMap[employee.department].high += 1;
+                else if (riskLevel === 'medium') riskMap[employee.department].medium += 1;
+                else riskMap[employee.department].low += 1;
             }
         });
 
@@ -252,26 +237,16 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
         return departmentRiskDistribution.filter(data => data.name === departmentFilter);
     }, [departmentRiskDistribution, departmentFilter]);
 
-    // Filter employees based on selected filters, using allEmployees instead of highRiskEmployees
+    // Filter employees based on selected filters with updated risk logic
     const filteredEmployees = useMemo(() => {
         return allEmployees.filter(employee => {
-            // Department filter
+            const employeeRiskLevel = employee.attritionRisk !== undefined
+                ? employee.attritionRisk > 75 ? 'High' : employee.attritionRisk >= 45 ? 'Medium' : 'Low'
+                : 'Low';
             const matchesDepartment = departmentFilter === 'All' || employee.department === departmentFilter;
-
-            // Risk level filter
-            const employeeRiskLevel =
-                employee.attritionRisk && employee.attritionRisk >= 50
-                    ? 'High'
-                    : employee.attritionRisk && employee.attritionRisk >= 45
-                        ? 'Medium'
-                        : 'Low';
             const matchesRiskLevel = riskLevelFilter === 'All' || employeeRiskLevel === riskLevelFilter;
-
-            // Sentiment tag filter
             const employeeSentimentTag = getSentimentTag(employee.sentimentScore);
             const matchesSentimentTag = sentimentTagFilter === 'All' || employeeSentimentTag === sentimentTagFilter;
-
-            // Name filter (case-insensitive)
             const matchesName = employee.name.toLowerCase().includes(nameFilter.toLowerCase());
 
             return matchesDepartment && matchesRiskLevel && matchesSentimentTag && matchesName;
@@ -286,18 +261,18 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
         return <div className="min-h-screen flex items-center justify-center text-red-600">{error}</div>;
     }
 
-    // Calculate the actual number of high-risk employees (attritionRisk >= 50)
-    const actualHighRiskCount = highRiskEmployees.filter(emp => emp.attritionRisk && emp.attritionRisk >= 50).length;
+    // Calculate the actual number of high-risk employees (attritionRisk > 75)
+    const actualHighRiskCount = highRiskEmployees.filter(emp => emp.attritionRisk && emp.attritionRisk > 75).length;
     const highRiskPercentage = totalEmployees > 0 ? ((actualHighRiskCount / totalEmployees) * 100).toFixed(1) : '0';
 
     // Colors
     const VIBRANT_COLORS = [
-        '#FF2D55', // Vivid Red (Engineering)
-        '#00D4B9', // Vivid Cyan (Marketing)
-        '#FF9500', // Vivid Orange (HR)
-        '#5856D6', // Vivid Purple (fallback)
-        '#FF2ABF', // Vivid Pink (fallback)
-        '#00C7FF', // Vivid Sky Blue (fallback)
+        '#FF2D55', // Vivid Red
+        '#00D4B9', // Vivid Cyan
+        '#FF9500', // Vivid Orange
+        '#5856D6', // Vivid Purple
+        '#FF2ABF', // Vivid Pink
+        '#00C7FF', // Vivid Sky Blue
     ];
 
     const RISK_COLORS = {
@@ -481,10 +456,8 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
                             <div className="p-6 border-b border-gray-200">
                                 <h2 className="text-lg font-semibold text-gray-800">Employees</h2>
                             </div>
-                            {/* Filters Section */}
                             <div className="p-6 border-b border-gray-200">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {/* Department Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
                                         <select
@@ -500,7 +473,6 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
                                         </select>
                                     </div>
 
-                                    {/* Risk Level Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Risk Level</label>
                                         <select
@@ -516,7 +488,6 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
                                         </select>
                                     </div>
 
-                                    {/* Sentiment Tag Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Sentiment Tag</label>
                                         <select
@@ -532,7 +503,6 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
                                         </select>
                                     </div>
 
-                                    {/* Name Search Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Search by Name</label>
                                         <input
@@ -558,50 +528,51 @@ const Dashboard: React.FC<DashboardProps> = ({ className }) => {
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                     {filteredEmployees.length > 0 ? (
-                                        filteredEmployees.map((employee) => (
-                                            <tr key={employee.id}>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm text-gray-500">{employee.department}</div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span
-                                                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                            employee.attritionRisk && employee.attritionRisk >= 50
-                                                                ? 'bg-red-100 text-red-800'
-                                                                : employee.attritionRisk && employee.attritionRisk >= 45
-                                                                    ? 'bg-yellow-100 text-yellow-800'
-                                                                    : 'bg-green-100 text-green-800'
-                                                        }`}
-                                                    >
-                                                        {employee.attritionRisk && employee.attritionRisk >= 50
-                                                            ? 'High'
-                                                            : employee.attritionRisk && employee.attritionRisk >= 45
-                                                                ? 'Medium'
-                                                                : 'Low'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    <span
-                                                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                            employee.sentimentScore <= -0.6
-                                                                ? 'bg-red-100 text-red-800'
-                                                                : employee.sentimentScore <= -0.2
-                                                                    ? 'bg-orange-100 text-orange-800'
-                                                                    : employee.sentimentScore <= 0.2
-                                                                        ? 'bg-gray-100 text-gray-800'
-                                                                        : employee.sentimentScore <= 0.6
-                                                                            ? 'bg-blue-100 text-blue-800'
+                                        filteredEmployees.map((employee) => {
+                                            const employeeRiskLevel = employee.attritionRisk !== undefined
+                                                ? employee.attritionRisk > 75 ? 'High' : employee.attritionRisk >= 45 ? 'Medium' : 'Low'
+                                                : 'Low';
+                                            return (
+                                                <tr key={employee.id}>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="text-sm text-gray-500">{employee.department}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span
+                                                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                                    employeeRiskLevel === 'High'
+                                                                        ? 'bg-red-100 text-red-800'
+                                                                        : employeeRiskLevel === 'Medium'
+                                                                            ? 'bg-yellow-100 text-yellow-800'
                                                                             : 'bg-green-100 text-green-800'
-                                                        }`}
-                                                    >
-                                                        {getSentimentTag(employee.sentimentScore)}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))
+                                                                }`}
+                                                            >
+                                                                {employeeRiskLevel}
+                                                            </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                            <span
+                                                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                                    employee.sentimentScore <= -0.6
+                                                                        ? 'bg-red-100 text-red-800'
+                                                                        : employee.sentimentScore <= -0.2
+                                                                            ? 'bg-orange-100 text-orange-800'
+                                                                            : employee.sentimentScore <= 0.2
+                                                                                ? 'bg-gray-100 text-gray-800'
+                                                                                : employee.sentimentScore <= 0.6
+                                                                                    ? 'bg-blue-100 text-blue-800'
+                                                                                    : 'bg-green-100 text-green-800'
+                                                                }`}
+                                                            >
+                                                                {getSentimentTag(employee.sentimentScore)}
+                                                            </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
                                     ) : (
                                         <tr>
                                             <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">

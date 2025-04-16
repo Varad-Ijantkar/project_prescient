@@ -174,8 +174,8 @@ def predict():
 
         # Validate employeeId
         if "employeeId" in data and (
-            not isinstance(data["employeeId"], (int, float))
-            or pd.isna(data["employeeId"])
+                not isinstance(data["employeeId"], (int, float))
+                or pd.isna(data["employeeId"])
         ):
             return (
                 jsonify(
@@ -269,8 +269,8 @@ def predict_bulk():
         # Validate employeeId in bulk data
         for emp in employees:
             if "employeeId" in emp and (
-                not isinstance(emp["employeeId"], (int, float))
-                or pd.isna(emp["employeeId"])
+                    not isinstance(emp["employeeId"], (int, float))
+                    or pd.isna(emp["employeeId"])
             ):
                 return (
                     jsonify(
@@ -288,16 +288,8 @@ def predict_bulk():
 
         for i, emp in enumerate(employees):
             emp["attritionRisk"] = round(probabilities[i][1] * 100, 2)
-            emp["sentimentScore"] = round(
-                (
-                    emp.get("jobSatisfaction", 1)
-                    + emp.get("environmentSatisfaction", 1)
-                    + emp.get("workLifeBalance", 1)
-                )
-                / 3
-                * 20,
-                2,
-            )
+            # Only set sentimentScore to null during bulk import unless feedback is provided
+            emp["sentimentScore"] = None
 
         for emp in employees:
             employee_id = emp.get("employeeId")
@@ -308,7 +300,7 @@ def predict_bulk():
 
         logger.info(f"Bulk processed and stored {len(employees)} employees")
         return jsonify(
-            {"status": "success", "message": "Bulk prediction and storage complete"}
+            {"status": "success", "message": "Bulk prediction and storage complete", "employees": employees}
         )
     except Exception as e:
         logger.error(f"Error in /predict/bulk: {str(e)}")
@@ -354,13 +346,13 @@ def analyze_sentiment():
             specific_feedback = (
                 str(row["SpecificFeedback"])
                 if "SpecificFeedback" in df.columns
-                and pd.notna(row["SpecificFeedback"])
+                   and pd.notna(row["SpecificFeedback"])
                 else None
             )
             satisfaction = (
                 int(row["How satisfied are you with your current job overall?"])
                 if "How satisfied are you with your current job overall?" in df.columns
-                and pd.notna(
+                   and pd.notna(
                     row["How satisfied are you with your current job overall?"]
                 )
                 else None
@@ -598,6 +590,7 @@ def get_sentiment():
         logger.error(f"Error in /sentiment: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+
 @app.route('/upload-feedback', methods=['POST'])
 def upload_feedback():
     print('Request received at /upload-feedback')
@@ -735,6 +728,61 @@ def get_feedback(employee_id):
         feedback['date'] = feedback['date'].strftime('%Y-%m-%d') if feedback['date'] else 'N/A'
     logger.info(f'Feedback found: {len(feedbacks)} entries')
     return jsonify({'feedbacks': feedbacks}), 200
+
+@app.route("/api/employees/bulk", methods=["POST"])
+def bulk_employees():
+    try:
+        data = request.get_json()
+        if not data or "employees" not in data:
+            return jsonify({"status": "error", "message": "No employees provided"}), 400
+
+        employees = data["employees"]
+        logger.info(f"Received {len(employees)} employees for bulk storage")
+
+        # Validate employeeId in bulk data
+        for emp in employees:
+            if "employeeId" in emp and (
+                    not isinstance(emp["employeeId"], (int, float))
+                    or pd.isna(emp["employeeId"])
+            ):
+                return (
+                    jsonify(
+                        {
+                            "status": "error",
+                            "message": f"Invalid employeeId in employee data: {emp}",
+                        }
+                    ),
+                    400,
+                )
+
+        # Perform bulk upsert
+        bulk_operations = [
+            {
+                "updateOne": {
+                    "filter": {"employeeId": int(emp["employeeId"])},
+                    "update": {"$set": emp},
+                    "upsert": True,
+                }
+            }
+            for emp in employees
+            if "employeeId" in emp
+        ]
+        result = employees_collection.bulk_write(bulk_operations)
+        logger.info(
+            f"Bulk operation completed: {result.upserted_count} upserted, {result.modified_count} modified"
+        )
+
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Employees bulk updated successfully",
+                "upserted_count": result.upserted_count,
+                "modified_count": result.modified_count,
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error in /api/employees/bulk: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(
