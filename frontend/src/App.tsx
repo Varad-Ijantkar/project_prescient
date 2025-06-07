@@ -10,7 +10,7 @@ const App: React.FC = () => {
         <ErrorBoundary>
             <Router>
                 <AuthProvider>
-                    <AppRoutes />??
+                    <AppRoutes />
                 </AuthProvider>
             </Router>
         </ErrorBoundary>
